@@ -1,0 +1,69 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+
+  # ── PostgreSQL Database ────────────────────────────────────
+  db:
+    image: postgres:15
+    container_name: devlinks-db
+    environment:
+      POSTGRES_USER: devlinks
+      POSTGRES_PASSWORD: devlinks
+      POSTGRES_DB: devlinks
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Only accessible inside Docker's network — not exposed to your machine
+    # This is intentional: only the backend should talk to the DB
+    networks:
+      - devlinks-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devlinks"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Python FastAPI Backend ─────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: devlinks-backend
+    environment:
+      DATABASE_URL: postgresql://devlinks:devlinks@db:5432/devlinks
+      BASE_URL: http://localhost
+    # Only start after db is healthy
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - devlinks-network
+    # Not exposed directly — Nginx will proxy to it
+    expose:
+      - "8000"
+
+  # ── React Frontend (Nginx) ─────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # At build time, tell React where the API lives
+        # In Docker Compose, /api will be proxied by Nginx to the backend
+        VITE_API_URL: ""
+    container_name: devlinks-frontend
+    depends_on:
+      - backend
+    networks:
+      - devlinks-network
+    ports:
+      - "80:80"
+
+# ── Volumes ────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+
+# ── Networks ───────────────────────────────────────────────────
+networks:
+  devlinks-network:
+    driver: bridge
