@@ -8,9 +8,9 @@ services:
     image: postgres:15
     container_name: devlinks-db
     environment:
-      POSTGRES_USER: devlinks
-      POSTGRES_PASSWORD: devlinks
-      POSTGRES_DB: devlinks
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     # Only accessible inside Docker's network — not exposed to your machine
@@ -30,8 +30,8 @@ services:
       dockerfile: Dockerfile
     container_name: devlinks-backend
     environment:
-      DATABASE_URL: postgresql://devlinks:devlinks@db:5432/devlinks
-      BASE_URL: http://localhost
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      BASE_URL: ${BASE_URL}
     # Only start after db is healthy
     depends_on:
       db:
