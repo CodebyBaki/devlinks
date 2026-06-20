@@ -16,7 +16,7 @@ COPY . .
 
 # Build the production React app
 # This produces a /app/dist folder with static HTML, CSS, JS
-ARG VITE_API_URL=http://localhost:8000
+ARG VITE_API_URL=""
 ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
