@@ -1,31 +1,35 @@
 // src/App.jsx
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Toaster, toast } from 'react-hot-toast'
 import { Link, Copy, ExternalLink, Zap, BarChart2 } from 'lucide-react'
-import { shortenUrl, getLinks } from './services/api'
+import { shortenUrl } from './services/api'
 import './index.css'
+
+const LINKS_STORAGE_KEY = 'devlinks:links'
+const MAX_LOCAL_LINKS = 50
+
+const loadLocalLinks = () => {
+  try {
+    const savedLinks = window.localStorage.getItem(LINKS_STORAGE_KEY)
+    const parsedLinks = savedLinks ? JSON.parse(savedLinks) : []
+    return Array.isArray(parsedLinks) ? parsedLinks : []
+  } catch {
+    return []
+  }
+}
+
+const saveLocalLinks = (links) => {
+  try {
+    window.localStorage.setItem(LINKS_STORAGE_KEY, JSON.stringify(links))
+  } catch {
+    toast.error('Could not save this link to your browser history')
+  }
+}
 
 export default function App() {
   const [url, setUrl] = useState('')
-  const [links, setLinks] = useState([])
+  const [links, setLinks] = useState(loadLocalLinks)
   const [loading, setLoading] = useState(false)
-  const [fetching, setFetching] = useState(true)
-
-  // Load existing links on mount
-  useEffect(() => {
-    fetchLinks()
-  }, [])
-
-  const fetchLinks = async () => {
-    try {
-      const data = await getLinks()
-      setLinks(data)
-    } catch {
-      toast.error('Could not load links')
-    } finally {
-      setFetching(false)
-    }
-  }
 
   const handleShorten = async (e) => {
     e.preventDefault()
@@ -37,7 +41,11 @@ export default function App() {
     setLoading(true)
     try {
       const newLink = await shortenUrl(url)
-      setLinks(prev => [newLink, ...prev])
+      setLinks(prev => {
+        const nextLinks = [newLink, ...prev].slice(0, MAX_LOCAL_LINKS)
+        saveLocalLinks(nextLinks)
+        return nextLinks
+      })
       setUrl('')
       toast.success('Short link created!')
     } catch {
@@ -99,9 +107,7 @@ export default function App() {
             <span style={styles.tableCount}>{links.length} total</span>
           </div>
 
-          {fetching ? (
-            <p style={styles.empty}>Loading...</p>
-          ) : links.length === 0 ? (
+          {links.length === 0 ? (
             <p style={styles.empty}>No links yet. Shorten your first URL above.</p>
           ) : (
             <div style={styles.linkList}>
